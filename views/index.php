@@ -6,7 +6,7 @@
     <title>Fresh Farms Market</title>
     <link rel="stylesheet" href="../styles/styles.css">
 </head>
-<script src="../scripts/scripts.js"></script>
+
 
 <body>
 
@@ -27,7 +27,7 @@
             <br/>
               <br/>
 
-            <form id="addproductform" method="post" enctype="multipart/form-data" action="../php/addProducts.php">
+            <form id="addproductform" method="post" enctype="multipart/form-data" >
                 <input type="text" name="product-name" id="product-name" placeholder="Enter Product Name" required>
                 <input type="number" name="price" id="price" placeholder="Enter Price" step="0.01" required>
                 
@@ -48,6 +48,6 @@
 
     <div class="product-grid" id="product-list"></div>
 
-
+<script src="../scripts/scripts.js"></script>
 </body>
 </html>

@@ -1,3 +1,7 @@
+
+
+//modal form for adding products
+
 document.addEventListener('DOMContentLoaded', function () {
     const modal = document.getElementById('modal');
     const addForm = document.getElementById('addproductform');
@@ -5,6 +9,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const previewImage = document.getElementById('preview');
     const openBtn = document.querySelector('.add-products');
     const closeBtn = document.querySelector('.close-modal');
+    const productList = document.getElementById('product-list');
 
     function openmodal() {
         modal.style.display = 'flex';
@@ -17,11 +22,9 @@ document.addEventListener('DOMContentLoaded', function () {
         previewImage.src = '';
     }
 
-    // Event listeners
     openBtn.addEventListener('click', openmodal);
     closeBtn.addEventListener('click', closemodal);
 
-    // Image preview logic
     imageInput.addEventListener('change', function () {
         const file = this.files[0];
 
@@ -37,4 +40,54 @@ document.addEventListener('DOMContentLoaded', function () {
             previewImage.style.display = 'none';
         }
     });
+
+  // add products to the database
+    addForm.addEventListener('submit', function (e) {
+        e.preventDefault();
+
+        const formData = new FormData(addForm);
+
+        fetch('../php/addProducts.php', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.text())
+        .then(result => {
+            alert(result);
+            previewImage.style.display = 'none';
+            previewImage.src = '';
+            modal.style.display = 'none';
+            addForm.reset();
+            loadProducts(); 
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('An error occurred while adding the product.');
+        });
+    });
+
+    // display products
+    function loadProducts() {
+        fetch('../php/displayproducts.php')
+            .then(response => response.json())
+            .then(data => {
+                productList.innerHTML = '';
+
+                data.forEach(product => {
+                    const productItem = document.createElement('div');
+                    productItem.className = 'product-item';
+                    productItem.innerHTML = `
+                        <img src="${product.imageURL}" alt="${product.productName}">
+                        <h3>${product.productName}</h3>
+                        <p>Price: $${product.price} per ${product.unitType}</p>
+                        <button class="add-to-cart" >Add to Cart</button>
+                    `;
+                    productList.appendChild(productItem);
+                });
+            })
+            .catch(error => console.error('Error loading products:', error));
+    }
+
+
+    loadProducts();
 });
