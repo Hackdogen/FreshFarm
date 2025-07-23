@@ -49,5 +49,6 @@
     <div class="product-grid" id="product-list"></div>
 
 <script src="../scripts/scripts.js"></script>
+
 </body>
 </html>

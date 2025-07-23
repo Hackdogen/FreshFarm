@@ -1,5 +1,3 @@
-
-
 //modal form for adding products
 
 document.addEventListener('DOMContentLoaded', function () {
@@ -83,11 +81,28 @@ document.addEventListener('DOMContentLoaded', function () {
                         <button class="add-to-cart" >Add to Cart</button>
                     `;
                     productList.appendChild(productItem);
+
+                    // Aomage pop up onclick
+                    const img = productItem.querySelector('img');
+                    img.addEventListener('click', function () {
+                        const overlay = document.createElement('div');
+                        overlay.className = 'image-overlay';
+
+                        const fullImage = document.createElement('img');
+                        fullImage.src = img.src;
+                        fullImage.alt = img.alt;
+
+                        overlay.appendChild(fullImage);
+                        document.body.appendChild(overlay);
+
+                        overlay.addEventListener('click', function () {
+                            document.body.removeChild(overlay);
+                        });
+                    });
                 });
             })
             .catch(error => console.error('Error loading products:', error));
     }
-
 
     loadProducts();
 });
