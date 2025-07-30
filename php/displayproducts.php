@@ -11,7 +11,7 @@ $products = [];
 if ($result->num_rows > 0){
     while ($row = $result->fetch_assoc()) {
         $products[] = [
-            'imageURL' => '../assets/images/' . $row['imageURL'],
+            'imageURL' => $row['imageURL'],
             'productName' => $row['productName'],
             'price' => $row['price'],
             'unitType' => $row['unitType'],
