@@ -11,6 +11,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 data.forEach(product => {
                     const productItem = document.createElement('div');
                     productItem.className = 'product-item';
+                    productItem.dataset.productId = product.productID;
                     productItem.innerHTML = `
                         <img src="${product.imageURL}" alt="${product.productName}">
                         <h3>${product.productName}</h3>
@@ -36,8 +37,6 @@ document.addEventListener('DOMContentLoaded', function () {
                             document.body.removeChild(overlay);
                         });
                     });
-
-                    // Removed View Order button logic
                 });
             })
             .catch(error => console.error('Error loading products:', error));
@@ -46,7 +45,7 @@ document.addEventListener('DOMContentLoaded', function () {
     loadProducts();
 
 
-// Create order modal HTML if not present
+// Create order modal 
 if (!document.getElementById('order-modal')) {
     const orderModal = document.createElement('div');
     orderModal.id = 'order-modal';
@@ -81,6 +80,8 @@ function openOrderModal(product) {
         <h3>${product.productName}</h3>
         <p>Price: ₱${product.price} per ${product.unitType}</p>
     `;
+    // Store productID for order submission
+    orderForm.dataset.productId = product.productID;
 
     // Set quantity input type
     if (product.unitType.toLowerCase() === 'kilo') {
@@ -129,7 +130,7 @@ function openOrderModal(product) {
         }
         // Save order to DB
         const orderData = new FormData();
-        orderData.append('productID', product.productID || product.id || '');
+        orderData.append('productID', orderForm.dataset.productId || product.productID || product.id || '');
         orderData.append('productName', product.productName);
         orderData.append('quantity', qty);
         orderData.append('unitType', product.unitType);
@@ -165,13 +166,9 @@ function renderCart() {
     let total = 0;
     cart.forEach((item, idx) => {
         const li = document.createElement('li');
-        li.style.display = 'flex';
-        li.style.justifyContent = 'space-between';
-        li.style.alignItems = 'center';
-        li.style.marginBottom = '8px';
         li.innerHTML = `
             <span>${item.productName} - ₱${item.price} x ${item.quantity}</span>
-            <button class="remove-from-cart" data-idx="${idx}" style="background:#e53935;color:#fff;border:none;border-radius:4px;padding:4px 10px;cursor:pointer;">Remove</button>
+            <button class="remove-from-cart" data-idx="${idx}">Remove</button>
         `;
         cartItems.appendChild(li);
         total += item.price * item.quantity;
@@ -188,19 +185,23 @@ document.getElementById('close-cart-btn').addEventListener('click', function() {
     document.getElementById('cart-modal').style.display = 'none';
 });
 
-// Add to cart functionality
+// Add to cart and view order functionality
 document.addEventListener('click', function(event) {
+    // Add to Cart
     if (event.target.classList.contains('add-to-cart')) {
         const productItem = event.target.closest('.product-item');
+        const productID = productItem.dataset.productId;
         const productName = productItem.querySelector('h3').textContent;
         const price = parseFloat(productItem.querySelector('p').textContent.replace(/[^0-9.-]+/g, ""));
+        const unitType = productItem.querySelector('p').textContent.toLowerCase().includes('kilo') ? 'Kilo' : 'Pack';
+        const imageURL = productItem.querySelector('img').src;
         const quantity = 1; // Default quantity
 
-        const existingItem = cart.find(item => item.productName === productName);
+        const existingItem = cart.find(item => item.productID === productID);
         if (existingItem) {
             existingItem.quantity += quantity;
         } else {
-            cart.push({ productName, price, quantity });
+            cart.push({ productID, productName, price, quantity, unitType, imageURL });
         }
         renderCart();
         alert(`${productName} has been added to your cart.`);
@@ -210,6 +211,15 @@ document.addEventListener('click', function(event) {
         const idx = parseInt(event.target.getAttribute('data-idx'));
         cart.splice(idx, 1);
         renderCart();
+    }
+    // View Order
+    if (event.target.classList.contains('view-order')) {
+        const productItem = event.target.closest('.product-item');
+        const productName = productItem.querySelector('h3').textContent;
+        const price = parseFloat(productItem.querySelector('p').textContent.replace(/[^0-9.-]+/g, ""));
+        const unitType = productItem.querySelector('p').textContent.toLowerCase().includes('kilo') ? 'Kilo' : 'Pack';
+        const imageURL = productItem.querySelector('img').src;
+        openOrderModal({ productName, price, unitType, imageURL });
     }
 });
 
@@ -226,22 +236,42 @@ document.getElementById('cart-user-form').addEventListener('submit', function(e)
         alert('Phone number must be 10 or 11 digits.');
         return;
     }
-    // Show browser notification for successful order
-    if (window.Notification && Notification.permission === 'granted') {
-        new Notification('Order Confirmed', { body: 'Your order was placed successfully!' });
-    } else if (window.Notification && Notification.permission !== 'denied') {
-        Notification.requestPermission().then(function(permission) {
-            if (permission === 'granted') {
-                new Notification('Order Confirmed', { body: 'Your order was placed successfully!' });
-            } else {
-                alert('Order confirmed!');
-            }
-        });
-    } else {
-        alert('Order confirmed!');
-    }
-    document.getElementById('cart-modal').style.display = 'none';
-    cart = [];
-    renderCart();
-    this.reset();
+
+    // Send the entire cart as JSON
+    fetch('../php/saveOrder.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            customerName: name,
+            customerContact: phone,
+            cart: cart.map(item => ({
+                productID: item.productID,
+                quantity: item.quantity
+            }))
+        })
+    })
+    .then(response => response.text())
+    .then(result => {
+        // Show browser notification for successful order
+        if (window.Notification && Notification.permission === 'granted') {
+            new Notification('Order Confirmed', { body: 'Your order was placed successfully!' });
+        } else if (window.Notification && Notification.permission !== 'denied') {
+            Notification.requestPermission().then(function(permission) {
+                if (permission === 'granted') {
+                    new Notification('Order Confirmed', { body: 'Your order was placed successfully!' });
+                } else {
+                    alert('Order confirmed!');
+                }
+            });
+        } else {
+            alert('Order confirmed!');
+        }
+        document.getElementById('cart-modal').style.display = 'none';
+        cart = [];
+        renderCart();
+        document.getElementById('cart-user-form').reset();
+    })
+    .catch(error => {
+        alert('Error saving order.');
+    });
 });

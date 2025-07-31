@@ -2,13 +2,13 @@
 require_once '../conn.php';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $customerName = $_POST['customerName'] ?? '';
-    $customerContact = $_POST['customerContact'] ?? '';
+    $data = json_decode(file_get_contents('php://input'), true);
+    $customerName = $data['customerName'] ?? '';
+    $customerContact = $data['customerContact'] ?? '';
     $orderDate = date('Y-m-d H:i:s');
-    $productID = $_POST['productID'] ?? '';
-    $quantity = $_POST['quantity'] ?? '';
+    $cart = $data['cart'] ?? [];
 
-    // Input validation (server-side)
+    // validation for order
     if (!preg_match('/^[A-Za-z ]+$/', $customerName)) {
         http_response_code(400);
         echo 'Invalid customer name.';
@@ -19,9 +19,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         echo 'Invalid contact number.';
         exit;
     }
-    if (!is_numeric($quantity) || $quantity <= 0) {
+    if (!is_array($cart) || count($cart) === 0) {
         http_response_code(400);
-        echo 'Invalid quantity.';
+        echo 'Cart is empty.';
         exit;
     }
 
@@ -30,16 +30,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $stmt->bind_param('sss', $customerName, $customerContact, $orderDate);
     if ($stmt->execute()) {
         $orderID = $conn->insert_id;
-        // Insert into tbl_details
-        $stmt2 = $conn->prepare('INSERT INTO tbl_details (orderID, productID, quantityOrdered) VALUES (?, ?, ?)');
-        $stmt2->bind_param('iis', $orderID, $productID, $quantity);
-        if ($stmt2->execute()) {
+        $success = true;
+        foreach ($cart as $item) {
+            $productID = $item['productID'];
+            $quantity = $item['quantity'];
+            if (!is_numeric($quantity) || $quantity <= 0) continue;
+            $stmt2 = $conn->prepare('INSERT INTO tbl_details (orderID, productID, quantityOrdered) VALUES (?, ?, ?)');
+            $stmt2->bind_param('iii', $orderID, $productID, $quantity);
+            if (!$stmt2->execute()) {
+                $success = false;
+            }
+            $stmt2->close();
+        }
+        if ($success) {
             echo 'Order saved successfully!';
         } else {
             http_response_code(500);
-            echo 'Failed to save order details.';
+            echo 'Failed to save some order details.';
         }
-        $stmt2->close();
     } else {
         http_response_code(500);
         echo 'Failed to save order.';
